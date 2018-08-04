@@ -50,8 +50,9 @@ psp_addfile_df.take(4)
 max_rows = 11744584
 output = list(range(11744585))
 
+#Select rows with non Null values and then select random rows from the dataframe.
 psp_addfile_df.where(col("STREET").isNotNull())
-psp_addfile_df.sample(True, 11.11, 100).limit(1) 
+psp_addfile_df.sample(False, 1.0, 100).collect() 
 
 # Add row_index column on each dataframe to be able to join the 2 dfs.
 psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
