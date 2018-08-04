@@ -50,7 +50,16 @@ psp_addfile_df.take(4)
 max_rows = 11744584
 output = list(range(11744585))
 
-psp_addfile_df.where(col("STREET").isNotNull()) - this is not giving the desired result. See 
+psp_addfile_df.where(col("STREET").isNotNull())
+psp_addfile_df.sample(True, 11.11, 100).limit(1) 
+
+# Add row_index column on each dataframe to be able to join the 2 dfs.
+psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
+df_data=df_data.withColumn('row_index', F.monotonically_increasing_id())
+
+# Join the dfs on row_index
+df_data = df_data.join(psp_addfile_df, on=["row_index"]).sort("row_index").drop("row_index")
+df_data.show()
 
 # columns = psp_datafile_df.columns
 # dict_changes = dict(zip(changes[0],changes[1]))
