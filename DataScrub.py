@@ -55,11 +55,11 @@ psp_addfile_df.sample(True, 11.11, 100).limit(1)
 
 # Add row_index column on each dataframe to be able to join the 2 dfs.
 psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
-df_data=df_data.withColumn('row_index', F.monotonically_increasing_id())
+psp_datafile_df=psp_datafile_df.withColumn('row_index', F.monotonically_increasing_id())
 
 # Join the dfs on row_index
-df_data = df_data.join(psp_addfile_df, on=["row_index"]).sort("row_index").drop("row_index")
-df_data.show()
+psp_datafile_df = psp_datafile_df.join(psp_addfile_df, on=["row_index"]).sort("row_index").drop("row_index")
+psp_datafile_df.show()
 
 # columns = psp_datafile_df.columns
 # dict_changes = dict(zip(changes[0],changes[1]))
