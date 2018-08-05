@@ -64,6 +64,9 @@ psp_datafile_df = psp_datafile_df.join(psp_addfile_df, on=["row_index"]).sort("r
 psp_datafile_df.show()
 ###########################################################################################################################
 # Option 2
+
+psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
+
 # Select random rows using the sampler function
 def sampler(df, column_name, records):
     print("column Name:" + column_name)
