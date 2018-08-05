@@ -37,7 +37,7 @@ psp_datafile_df = spark.read.csv(data_file,header=True,inferSchema=True)
 # Using Spark DataFrames for managing the OPENADDRESSES dataset
 psp_addfile_df = spark.read.csv("statewide_*.csv",header=True,inferSchema=True)
 psp_addfile_df.take(4)
-
+#############################################################################################################################
 # Using pandas dataframe
 # big_frame = pd.concat([pd.read_csv(f, sep=',', low_memory=False) for f in glob.glob(path + "/*.csv")], ignore_index=True)
 # The next statement is used for shuffling the rows in dataframe
@@ -46,7 +46,8 @@ psp_addfile_df.take(4)
 # big_frame["ADD_LN_1"] = big_frame["NUMBER"].map(str) + " " + big_frame["STREET"]
 # big_frame.head(data_rows_count) - 11744584
 #11744584
-
+############################################################################################################################
+# Option 1. Select random rows using sample function.
 max_rows = 11744584
 output = list(range(11744585))
 
@@ -61,7 +62,27 @@ psp_datafile_df=psp_datafile_df.withColumn('row_index', F.monotonically_increasi
 # Join the dfs on row_index
 psp_datafile_df = psp_datafile_df.join(psp_addfile_df, on=["row_index"]).sort("row_index").drop("row_index")
 psp_datafile_df.show()
+###########################################################################################################################
+# Option 2
+# Select random rows using the sampler function
+def sampler(df, column_name, records):
+    print("column Name:" + column_name)
+    #Calculate number of rows and round off
+    #rows_max=df.count
+    #print(rows_max)
+    #round_rows_max = round(rows_max)
+    #print(round_rows_max)
+    rows_max_int = records
+    #Create random sample
+    nums=[x for x in range(rows_max_int)]
+    random.shuffle(nums)
+    print(nums[0:5])
+    #Use 'nums' to filter dataframe using 'isin'
+    return df[df.column_name.isin(nums)].collect
+    #return df.filter(col(column_name).isin(nums))
 
+psp_addfile_df = sampler(psp_addfile_df,"row_index",50000)
+###########################################################################################################################
 # columns = psp_datafile_df.columns
 # dict_changes = dict(zip(changes[0],changes[1]))
 # flag = True
