@@ -9,8 +9,7 @@ from pyspark.sql.types import *
 from pyspark.sql import Row
 from pyspark.sql.functions import when
 from pyspark.sql import functions as F
-from faker import Faker
-fake = Faker()
+import random
 
 #Remove Status file if already existing
 if os.path.isfile('SparkExecutionStatus.txt'):
@@ -35,8 +34,7 @@ changes = pd.read_csv(scrubbing_needs, header=None)
 psp_datafile_df = spark.read.csv(data_file,header=True,inferSchema=True)
 
 # Using Spark DataFrames for managing the OPENADDRESSES dataset
-psp_addfile_df = spark.read.csv("statewide_*.csv",header=True,inferSchema=True)
-psp_addfile_df.take(4)
+psp_addfile_df = spark.read.csv("statewide_*.csv",header=True,inferSchema=True,nullValue=None,nanValue=None)
 #############################################################################################################################
 # Using pandas dataframe
 # big_frame = pd.concat([pd.read_csv(f, sep=',', low_memory=False) for f in glob.glob(path + "/*.csv")], ignore_index=True)
@@ -47,44 +45,46 @@ psp_addfile_df.take(4)
 # big_frame.head(data_rows_count) - 11744584
 #11744584
 ############################################################################################################################
-# Option 1. Select random rows using sample function.
-max_rows = 11744584
-output = list(range(11744585))
+# # Option 1. Select random rows using sample function.
+# max_rows = 11744584
+# output = list(range(11744585))
 
-#Select rows with non Null values and then select random rows from the dataframe.
-psp_addfile_df.where(col("STREET").isNotNull())
-psp_addfile_df.sample(False, 1.0, 100).collect() 
+# #Select rows with non Null values and then select random rows from the dataframe.
+# psp_addfile_df.where(col("STREET").isNotNull())
+# psp_addfile_df.sample(False, 1.0, 100).collect() 
 
-# Add row_index column on each dataframe to be able to join the 2 dfs.
-psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
-psp_datafile_df=psp_datafile_df.withColumn('row_index', F.monotonically_increasing_id())
+# # Add row_index column on each dataframe to be able to join the 2 dfs.
+# psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
+# psp_datafile_df=psp_datafile_df.withColumn('row_index', F.monotonically_increasing_id())
 
-# Join the dfs on row_index
-psp_datafile_df = psp_datafile_df.join(psp_addfile_df, on=["row_index"]).sort("row_index").drop("row_index")
-psp_datafile_df.show()
+# # Join the dfs on row_index
+# psp_datafile_df = psp_datafile_df.join(psp_addfile_df, on=["row_index"]).sort("row_index").drop("row_index")
+# psp_datafile_df.show()
 ###########################################################################################################################
 # Option 2
+psp_addfile_df.createOrReplaceTempView("addressData")
+sql_addfile_df = spark.sql("SELECT * FROM addressData WHERE STREET != 'None' AND UNIT != 'None' AND CITY != 'None' AND REGION !='None'")
+add_file_count=sql_addfile_df.count()
+sql_addfile_df=sql_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
 
-psp_addfile_df=psp_addfile_df.withColumn('row_index', F.monotonically_increasing_id())
-
-# Select random rows using the sampler function
 def sampler(df, column_name, records):
     print("column Name:" + column_name)
     #Calculate number of rows and round off
     #rows_max=df.count
     #print(rows_max)
-    #round_rows_max = round(rows_max)
-    #print(round_rows_max)
     rows_max_int = records
     #Create random sample
-    nums=[x for x in range(rows_max_int)]
+    nums=[int(x) for x in range(rows_max_int)]
     random.shuffle(nums)
     print(nums[0:5])
     #Use 'nums' to filter dataframe using 'isin'
-    return df[df.column_name.isin(nums)].collect
-    #return df.filter(col(column_name).isin(nums))
+    #return df[df.column_name.isin(nums)]
+    return df.filter(col(column_name).isin(*nums))
 
-psp_addfile_df = sampler(psp_addfile_df,"row_index",50000)
+psp_addfile_df = sampler(sql_addfile_df,"row_index",50000)
+# Concat the Number and Street columns to create Address Line 1 in the format required for the data file
+psp_addfile_df = psp_addfile_df.withColumn('ADDR_LN_1', concat(psp_addfile_df.NUMBER,lit(" "), psp_addfile_df.STREET))
+psp_addfile_df.take(5)
 ###########################################################################################################################
 # columns = psp_datafile_df.columns
 # dict_changes = dict(zip(changes[0],changes[1]))
