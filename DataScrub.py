@@ -180,7 +180,7 @@ psp_datafile_newState_df=psp_datafile_newAdd_df.withColumn('STAT_CD_DESC', state
 # Finally drop unnecessary columns from datafile Dataframe
 datafile_drop_list = ['NEW_CITY','REGION','POSTCODE','ADDR_LN_1','ADDR_LN_2']
 psp_datafile_addChanged = psp_datafile_newState_df.drop(*datafile_drop_list)
-psp_datafile_addChanged.take(2)
+#psp_datafile_addChanged.take(2)
 ###########################################################################################################################
 # columns = psp_datafile_df.columns
 # dict_changes = dict(zip(changes[0],changes[1]))
