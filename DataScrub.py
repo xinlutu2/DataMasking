@@ -35,6 +35,74 @@ psp_datafile_df = spark.read.csv(data_file,header=True,inferSchema=True)
 
 # Using Spark DataFrames for managing the OPENADDRESSES dataset
 psp_addfile_df = spark.read.csv("statewide_*.csv",header=True,inferSchema=True,nullValue=None,nanValue=None)
+
+# Define a dictionary and create a function to retrieve State Name using State Code
+states = {
+        'AK': 'Alaska',
+        'AL': 'Alabama',
+        'AR': 'Arkansas',
+        'AS': 'American Samoa',
+        'AZ': 'Arizona',
+        'CA': 'California',
+        'CO': 'Colorado',
+        'CT': 'Connecticut',
+        'DC': 'District of Columbia',
+        'DE': 'Delaware',
+        'FL': 'Florida',
+        'GA': 'Georgia',
+        'GU': 'Guam',
+        'HI': 'Hawaii',
+        'IA': 'Iowa',
+        'ID': 'Idaho',
+        'IL': 'Illinois',
+        'IN': 'Indiana',
+        'KS': 'Kansas',
+        'KY': 'Kentucky',
+        'LA': 'Louisiana',
+        'MA': 'Massachusetts',
+        'MD': 'Maryland',
+        'ME': 'Maine',
+        'MI': 'Michigan',
+        'MN': 'Minnesota',
+        'MO': 'Missouri',
+        'MP': 'Northern Mariana Islands',
+        'MS': 'Mississippi',
+        'MT': 'Montana',
+        'NA': 'National',
+        'NC': 'North Carolina',
+        'ND': 'North Dakota',
+        'NE': 'Nebraska',
+        'NH': 'New Hampshire',
+        'NJ': 'New Jersey',
+        'NM': 'New Mexico',
+        'NV': 'Nevada',
+        'NY': 'New York',
+        'OH': 'Ohio',
+        'OK': 'Oklahoma',
+        'OR': 'Oregon',
+        'PA': 'Pennsylvania',
+        'PR': 'Puerto Rico',
+        'RI': 'Rhode Island',
+        'SC': 'South Carolina',
+        'SD': 'South Dakota',
+        'TN': 'Tennessee',
+        'TX': 'Texas',
+        'UT': 'Utah',
+        'VA': 'Virginia',
+        'VI': 'Virgin Islands',
+        'VT': 'Vermont',
+        'WA': 'Washington',
+        'WI': 'Wisconsin',
+        'WV': 'West Virginia',
+        'WY': 'Wyoming'
+}
+
+def stateCodeToName(stateCode):
+    if stateCode in states:
+        return states[stateCode]
+
+# Register the above created function as an User Defined Function (UDF)
+state_name_udf = udf(stateCodeToName, StringType())
 #############################################################################################################################
 # Using pandas dataframe
 # big_frame = pd.concat([pd.read_csv(f, sep=',', low_memory=False) for f in glob.glob(path + "/*.csv")], ignore_index=True)
@@ -81,10 +149,38 @@ def sampler(df, column_name, records):
     #return df[df.column_name.isin(nums)]
     return df.filter(col(column_name).isin(*nums))
 
-psp_addfile_df = sampler(sql_addfile_df,"row_index",50000)
-# Concat the Number and Street columns to create Address Line 1 in the format required for the data file
+# Select 100000 random rows. This process is time consuming and CPU intensive
+psp_addfile_df = sampler(sql_addfile_df,"row_index",100000)
+
+# Format column values to create ADDR_LN_1 and ADDR_LN_2 to match the data file format
 psp_addfile_df = psp_addfile_df.withColumn('ADDR_LN_1', concat(psp_addfile_df.NUMBER,lit(" "), psp_addfile_df.STREET))
-psp_addfile_df.take(5)
+psp_addfile_df = psp_addfile_df.withColumn('ADDR_LN_2', concat(lit("UNIT"), lit(" "),psp_addfile_df.UNIT))
+
+# Drop unnecessary columns from the OPENADDRESSES.IO dataframe
+drop_list = ['LON','LAT','NUMBER','STREET','UNIT','DISTRICT','ID','HASH','row_index']
+psp_addfile_drop1_df = psp_addfile_df.drop(*drop_list)
+
+# Select DISTINCT rows. Currently using DISTINCT. Later, need to use distinct on a specific column value.
+psp_addfile_df_dist = psp_addfile_drop1_df.distinct()
+
+# Rename column CITY in OPENADDRESSES.IO to NEW_CITY. This is done to avoid ambiguous reference to CITY column in the data file
+psp_addfile_df_dist = psp_addfile_df_dist.withColumnRenamed('CITY','NEW_CITY')
+
+# Join both dataframes to create one final dataframe
+psp_addfile_df_dist=psp_addfile_df_dist.withColumn('row_index', F.monotonically_increasing_id())
+psp_datafile_df=psp_datafile_df.withColumn('row_index', F.monotonically_increasing_id())
+psp_datafile_newAdd_df = psp_datafile_df.join(psp_addfile_df_dist, 'row_index').drop('row_index')
+
+# Replace data file field values with values from OPENADDRESS.IO dataframe
+psp_datafile_newAdd_df = psp_datafile_newAdd_df.withColumn('CITY',lit(psp_datafile_newAdd_df.NEW_CITY)).withColumn('STAT',lit(psp_datafile_newAdd_df.REGION)).withColumn('ZIP',lit(psp_datafile_newAdd_df.POSTCODE)).withColumn('PRPTY_ADDR_LN1',lit(psp_datafile_newAdd_df.ADDR_LN_1)).withColumn('PRPTY_ADDR_LN2',lit(psp_datafile_newAdd_df.ADDR_LN_2))
+
+# Use UDF to replace state description
+psp_datafile_newState_df=psp_datafile_newAdd_df.withColumn('STAT_CD_DESC', state_name_udf('STAT'))
+
+# Finally drop unnecessary columns from datafile Dataframe
+datafile_drop_list = ['NEW_CITY','REGION','POSTCODE','ADDR_LN_1','ADDR_LN_2']
+psp_datafile_addChanged = psp_datafile_newState_df.drop(*datafile_drop_list)
+psp_datafile_addChanged.take(2)
 ###########################################################################################################################
 # columns = psp_datafile_df.columns
 # dict_changes = dict(zip(changes[0],changes[1]))
