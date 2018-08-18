@@ -206,11 +206,11 @@ if ((valid_columns == True) & (valid_replace_keys == True)):
             df = df.withColumn('row_index', F.monotonically_increasing_id())
             df = df.join(sql_add_df, 'row_index').drop('row_index')
             # Replace the required values in the data file dataframe
-            df = df.withColumn('CITY', lit(sql_add_df.NEW_CITY))\
-                    .withColumn('STAT', lit(sql_add_df.REGION))\
-                    .withColumn('ZIP', lit(sql_add_df.POSTCODE))\
-                    .withColumn('PRPTY_ADDR_LN1', lit(sql_add_df.ADDR_LN_1))\
-                    .withColumn('PRPTY_ADDR_LN2', lit(sql_add_df.ADDR_LN_2))
+            df = df.withColumn('CITY', lit(df.NEW_CITY))\
+                    .withColumn('STAT', lit(df.REGION))\
+                    .withColumn('ZIP', lit(df.POSTCODE))\
+                    .withColumn('PRPTY_ADDR_LN1', lit(df.ADDR_LN_1))\
+                    .withColumn('PRPTY_ADDR_LN2', lit(df.ADDR_LN_2))
 
             # Finally drop the unnecessary columns
             df_drop_list = ['NEW_CITY','REGION','POSTCODE','ADDR_LN_1','ADDR_LN_2']
