@@ -184,6 +184,10 @@ try:
 except Exception as e:
     f.write(dataFileInvalid)
     f.close()
+    
+# Drop unnecessary columns from the data file dataframe
+drop_list = ['BTCH_CR_RUN_ID', 'BTCH_CR_TS', 'BTCH_LST_UPD_RUN_ID', 'BTCH_LST_UPD_TS']
+df = df.drop(*drop_list)
 
 # Register the functions as User Defined Functions (UDF)
 state_name_udf = udf(stateCodeToName, StringType())
