@@ -24,6 +24,7 @@ if len(sys.argv) != 4:
 re_dict_col = {}
 re_dict_val = {}
 dataFileInvalid = "User input error. Data file mentioned is not available. Please check the name and re-run the script!!!!"
+dataFileFormatInvalid = " User input error. Data file needs to be in .txt or .csv format only!!!!"
 replaceFileInvalid = "User input error. Replace file mentioned is not available. Please check the name and re-run the script!!!!"
 successStatusMsg = "Scrubbing process successfully completed"
 failureStatusMsg = "Scrubbing process failed. Please check the exception file log for more information"
@@ -147,6 +148,7 @@ try:
 except Exception as e:
     f.write(replaceFileInvalid)
     f.close()
+    sys.exit(replaceFileInvalid)
 
 reader = csv.DictReader(scrub_file)
 
@@ -177,14 +179,22 @@ spark = SparkSession.builder.appName('DataScrub').getOrCreate()
 
 # Read the data file and create a Spark Dataframe
 try:
-    df = spark.read.option("header", "true") \
+    if input_file.endswith('.txt'):
+        df = spark.read.option("header", "true") \
         .option("delimiter", "|") \
         .option("inferSchema", "true") \
-        .csv(input_file) 
+        .csv(input_file)
+    elif input_file.endswith('.csv'):
+        df = spark.read.csv(input_file,inferSchema =True,header=True)
+    else:
+        f.write(dataFileFormatInvalid)
+        f.close()
+        sys.exit(dataFileFormatInvalid)
+
 except Exception as e:
     f.write(dataFileInvalid)
     f.close()
-    
+
 # Drop unnecessary columns from the data file dataframe
 drop_list = ['BTCH_CR_RUN_ID', 'BTCH_CR_TS', 'BTCH_LST_UPD_RUN_ID', 'BTCH_LST_UPD_TS']
 df = df.drop(*drop_list)
