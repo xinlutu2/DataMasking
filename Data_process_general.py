@@ -265,7 +265,7 @@ try:
                     .withColumn('PRPTY_ADDR_LN2', lit(df.ADDR_LN_2))
 
             # Finally drop the unnecessary columns
-            df_drop_list = ['NEW_CITY','REGION','POSTCODE','ADDR_LN_1','ADDR_LN_2','new_index']
+            df_drop_list = ['NEW_CITY','REGION','POSTCODE','ADDR_LN_1','ADDR_LN_2','new_index','join_index']
             df = df.drop(*df_drop_list)
             # Use UDF to replace state description
             df = df.withColumn('STAT_CD_DESC', state_name_udf('STAT'))
