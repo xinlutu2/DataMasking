@@ -184,10 +184,17 @@ spark = SparkSession.builder.appName('DataScrub').getOrCreate()
 
 # Read the data file and create a Spark Dataframe
 try:
-    df = spark.read.option("header", "true") \
+    if input_file.endswith('.txt'):
+        df = spark.read.option("header", "true") \
         .option("delimiter", "|") \
         .option("inferSchema", "true") \
-        .csv(input_file) 
+        .csv(input_file)
+    elif input_file.endswith('.csv'):
+        df = spark.read.csv(input_file,inferSchema =True,header=True)
+    else:
+        f.write(dataFileFormatInvalid)
+        f.close()
+        sys.exit(dataFileFormatInvalid)
 except Exception as e:
     f.write(dataFileInvalid)
     f.close()
