@@ -5,15 +5,16 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from pyspark.sql import Row
-from pyspark.sql.functions import when
+from pyspark.sql.functions import when, col
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window 
 import pandas as pd
 import numpy as np
 import sys
 import os
-import random,csv, shutil
+import random, csv, shutil
 import traceback
+from ast import literal_eval
 
 # This script takes three arguments, an input a replace, and a output
 if len(sys.argv) != 4:
@@ -195,6 +196,7 @@ try:
         f.write(dataFileFormatInvalid)
         f.close()
         sys.exit(dataFileFormatInvalid)
+
 except Exception as e:
     f.write(dataFileInvalid)
     f.close()
@@ -205,7 +207,6 @@ df = df.drop(*drop_list)
 
 # Register the functions as User Defined Functions (UDF)
 state_name_udf = udf(stateCodeToName, StringType())
-increment_udf = udf(lambda x: x + 5, IntegerType())
 
 # Create a list of columns present in the data file
 df_columns = df.columns
@@ -236,6 +237,8 @@ try:
     for key, value in re_dict_col.items():
         if key == "numeric":
             for column in value:
+                startint_value = int(re_dict_val[column])
+                increment_udf = udf(lambda x: x + startint_value, IntegerType())
                 df = df.withColumn('index', monotonically_increasing_id())\
                 .withColumn(column, increment_udf('index')).drop('index')
         if key == "multiple":
@@ -303,5 +306,3 @@ except Exception as e:
         #f.write(traceback.format_exc())
         exceptfile.close()
         SparkSession.stop
-       
-      
