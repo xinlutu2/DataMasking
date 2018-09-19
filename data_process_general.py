@@ -169,12 +169,12 @@ for row in reader:
 # for key, value in re_dict_val.items():
 #     re_dict_val[key] = value.split(",")
 
-# Convert value 'blob' for fields which have to be replaced using "multiple" for changes into a dictionary
-for key, value in re_dict_val.items():
-    if "{" in value:
-        dict_value = re_dict_val[key]
-        multi_dict = literal_eval(dict_value)
-        re_dict_val[key] = multi_dict
+# # Convert value 'blob' for fields which have to be replaced using "multiple" for changes into a dictionary
+# for key, value in re_dict_val.items():
+#     if "{" in value:
+#         dict_value = re_dict_val[key]
+#         multi_dict = literal_eval(dict_value)
+#         re_dict_val[key] = multi_dict
 
 # Strip whitespaces from the above created dictionaries. This is needed to match column names in the dataframes
 strip_dict(re_dict_val)
@@ -246,8 +246,12 @@ try:
                 # type_select = re_dict_val[column]
                 # type_random = udf(lambda x: random.choice(type_select), StringType())
                 # df = df.withColumn(column, type_random(column))
-                for key in re_dict_val[column]:
-                    df = df.withColumn(column, when(df[column] == key, re_dict_val[column][key]).otherwise(df[column]))
+                # for key in re_dict_val[column]:
+                #     df = df.withColumn(column, when(df[column] == key, re_dict_val[column][key]).otherwise(df[column]))
+                dict_value = re_dict_val[column]
+                multi_dict = literal_eval(dict_value)
+                multi_dict_udf = udf(lambda x: multi_dict[x] if x in multi_dict else x, StringType())
+                df = df.withColumn(column, multi_dict_udf(column))  
         if key == "fix":
             for column in value:
                 df = df.withColumn(column, lit(' '.join(re_dict_val[column])))             
