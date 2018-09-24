@@ -237,8 +237,8 @@ try:
     for key, value in re_dict_col.items():
         if key == "numeric":
             for column in value:
-                startint_value = int(re_dict_val[column])
-                increment_udf = udf(lambda x: x + startint_value, IntegerType())
+                startint_value = int(float(re_dict_val[column]))
+                increment_udf = udf(lambda x: x + startint_value, LongType())
                 df = df.withColumn('index', monotonically_increasing_id())\
                 .withColumn(column, increment_udf('index')).drop('index')
         if key == "multiple":
