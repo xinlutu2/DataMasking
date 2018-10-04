@@ -1,4 +1,4 @@
-# spark-submit data_process_general_lastest.py merged.csv replaceDIMASSTMSTR.csv output
+# spark-submit data_process_general_latest_MASTER.py DIM_ASST_MSTR.txt replaceDIMASSTMSTR.csv output
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 from pyspark.sql import SparkSession
@@ -34,7 +34,7 @@ invalid_column_names = "User input error. Invalid scrubbing criteria. One or mor
 invalid_type_values = "User input error. Invalid scrubbing criteria. One or more values in the TYPE column of replace file are incorrect. Please check the replace file contents!!!!"
 exceptionStatusMsg = "Processing error. Error occured during code execution. Please check the Execution exception log file for more details!!!!"
 
-valid_replace_changes = ['address', 'fix', 'multiple', 'numeric','regex','single']
+valid_replace_changes = ['address', 'fix', 'multiple', 'numeric','regex','single','cross']
 input_file = sys.argv[1]
 replace_file = sys.argv[2]
 output_directory = sys.argv[3]
@@ -253,11 +253,17 @@ try:
     for key, value in re_dict_col.items():
         if key == "numeric":
             for column in value:
+                startint_value = int(re_dict_val[column])
+                df = df.withColumn('temp', lit(startint_value))
+                df = df.withColumn(column, col(column)-col('temp')).drop('temp')
+                # df = df.withColumn(column, increment_udf(column))
+        if key == "cross":
+            for column in value:
                 startint_value = int(float(re_dict_val[column]))
                 increment_udf = udf(lambda x: x + startint_value, LongType())
                 # df = df.withColumn('index', monotonically_increasing_id())\
                 # .withColumn(column, increment_udf('index')).drop('index')
-                df = df.withColumn(column, increment_udf('ASST_DIM_ID'))
+                df = df.withColumn(column, increment_udf('ASST_ID'))
         if key == "multiple":
             for column in value:
                 # type_select = re_dict_val[column]
