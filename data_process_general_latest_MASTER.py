@@ -325,6 +325,8 @@ try:
             ####################################################################################################################################
             # Join both dataframes to create one final dataframe
             df = df.join(sql_add_df, 'ASST_ID')
+
+            # df = df.join(sql_add_df, 'ASST_ID', "left_outer")
             # Replace the required values in the data file dataframe
             df = df.withColumn('CITY', lit(df.NEW_CITY))\
                     .withColumn('STAT', lit(df.REGION))\
@@ -336,9 +338,12 @@ try:
             df = df.drop(*df_drop_list)
             # Use UDF to replace state description
             df = df.withColumn('STAT_CD_DESC', state_name_udf('STAT'))
-    df.coalesce(1).write.csv(output_directory, sep = '|', header=True)
+            
+    df.coalesce(1).write.csv(output_directory+'/csv', header=True)
     # If the output has to be written in parquet format uncomment the below line of code
-    # df.write.parquet(output_directory)
+    df.coalesce(1).write.csv(output_directory+'/pipe', sep = '|', header=True)
+    df.coalesce(1).write.parquet(output_directory+'/parquet')
+
     f.write(successStatusMsg)
     f.close()
     SparkSession.stop
