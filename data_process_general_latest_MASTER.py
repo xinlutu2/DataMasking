@@ -17,8 +17,8 @@ import traceback
 from ast import literal_eval
 
 # This script takes three arguments, an input a replace, and a output
-if len(sys.argv) != 4:
-  print('Usage: ' + sys.argv[0] + 'Script name should be followed by Input file, replace file and the output directory location. All 3 arguments seperated by single space')
+if len(sys.argv) != 5:
+  print('Usage: ' + sys.argv[0] + 'Script name should be followed by Input file, Address File, replace file and the output directory location. All 3 arguments seperated by single space')
   sys.exit(1)
 
 # Variables declarations
@@ -36,8 +36,9 @@ exceptionStatusMsg = "Processing error. Error occured during code execution. Ple
 
 valid_replace_changes = ['address', 'fix', 'multiple', 'numeric','regex','single','cross']
 input_file = sys.argv[1]
-replace_file = sys.argv[2]
-output_directory = sys.argv[3]
+address_file = sys.argv[2]
+replace_file = sys.argv[3]
+output_directory = sys.argv[4]
 execution_status_files = ['ExecutionResult.txt','Excecution_Exception_Log.txt']
 
 # Remove output directory if exists
@@ -292,46 +293,52 @@ try:
                 parse_udf = udf(lambda x: x.split(delimiter)[flag], StringType())
                 df = df.withColumn(column, parse_udf(re_dict_val[column][:-2]))
         if key == "address":
-            # change valid address
-            add_df = spark.read.csv("statewide_*.csv",header=True,inferSchema=True,nullValue=None,nanValue=None) 
+            # Read the ASSET ID to Address CSV file
+            add_df = spark.read.csv(address_file,header=True,inferSchema=True,nullValue=None,nanValue=None) 
             # create temp view
             add_df.createOrReplaceTempView("addressData")
             # Remove rows with None on certain columns
-            sql_add_df = spark.sql("SELECT * FROM addressData WHERE STREET != 'None' AND UNIT != 'None' AND CITY != 'None' AND REGION !='None'")
+            sql_add_df = spark.sql("SELECT * FROM addressData WHERE STREET != 'None' AND CITY != 'None' AND REGION !='None'")
             # Add index
             sql_add_df = sql_add_df.withColumn('ADDR_LN_1', concat(sql_add_df.NUMBER,lit(" "), sql_add_df.STREET))
-            sql_add_df = sql_add_df.withColumn('ADDR_LN_2', concat(lit("UNIT"), lit(" "),sql_add_df.UNIT))
+            sql_add_df = sql_add_df.withColumn('ADDR_LN_2', lit(" "))
+            # Comment the line above and uncomment the below line of code if you would like to include Apartments in the address values. Appropriate values should be present in the address file
+            # sql_add_df = sql_add_df.withColumn('ADDR_LN_2', concat(lit("UNIT"), lit(" "),sql_add_df.UNIT))
             # Drop unnecessary columns from the OPENADDRESSES.IO dataframe
             drop_list = ['LON','LAT','NUMBER','STREET','UNIT','DISTRICT','ID','HASH']
             sql_add_df = sql_add_df.drop(*drop_list)
             # Select DISTINCT rows. Currently using DISTINCT. Later, need to use distinct on a specific column value.
-            sql_add_df = sql_add_df.distinct()
+            # sql_add_df = sql_add_df.distinct()
             # Rename column CITY in OPENADDRESSES.IO to NEW_CITY. This is done to avoid ambiguous reference to CITY column in the data file
             sql_add_df = sql_add_df.withColumnRenamed('CITY','NEW_CITY')
-            # Select random address rows
-            w = Window.orderBy("NEW_CITY")
-            w2 = Window.orderBy("ASST_DIM_ID")
-            sql_add_df = sql_add_df.withColumn("new_index", row_number().over(w))
-            df = df.withColumn("join_index", row_number().over(w2))
-            # Select random address data
-            sql_addfile_df = sampler(sql_add_df,"new_index",datafile_count)
-            # Adding index column once again to the address dataframe to be able to join with the data file dataframe
-            sql_addfile_df = sql_addfile_df.withColumn("join_index", row_number().over(w))
+            ##################################################################################################################################
+            ################################################# OLD CODE #######################################################################
+            # # Select random address rows
+            # w = Window.orderBy("NEW_CITY")
+            # w2 = Window.orderBy("ASST_DIM_ID")
+            # sql_add_df = sql_add_df.withColumn("new_index", row_number().over(w))
+            # df = df.withColumn("join_index", row_number().over(w2))
+            # # Select random address data
+            # sql_addfile_df = sampler(sql_add_df,"new_index",datafile_count)
+            # # Adding index column once again to the address dataframe to be able to join with the data file dataframe
+            # sql_addfile_df = sql_addfile_df.withColumn("join_index", row_number().over(w))
+            ####################################################################################################################################
             # Join both dataframes to create one final dataframe
-            df = df.join(sql_addfile_df, 'join_index')
+            df = df.join(sql_add_df, 'ASST_ID')
             # Replace the required values in the data file dataframe
             df = df.withColumn('CITY', lit(df.NEW_CITY))\
                     .withColumn('STAT', lit(df.REGION))\
                     .withColumn('ZIP', lit(df.POSTCODE))\
                     .withColumn('PRPTY_ADDR_LN1', lit(df.ADDR_LN_1))\
                     .withColumn('PRPTY_ADDR_LN2', lit(df.ADDR_LN_2))
-
             # Finally drop the unnecessary columns
             df_drop_list = ['NEW_CITY','REGION','POSTCODE','ADDR_LN_1','ADDR_LN_2','new_index','join_index']
             df = df.drop(*df_drop_list)
             # Use UDF to replace state description
             df = df.withColumn('STAT_CD_DESC', state_name_udf('STAT'))
-    df.write.csv(output_directory, header=True)
+    df.coalesce(1).write.csv(output_directory, sep = '|', header=True)
+    # If the output has to be written in parquet format uncomment the below line of code
+    # df.write.parquet(output_directory)
     f.write(successStatusMsg)
     f.close()
     SparkSession.stop
