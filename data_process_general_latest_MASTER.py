@@ -1,4 +1,4 @@
-# spark-submit data_process_general_latest_MASTER.py DIM_ASST_MSTR.txt replaceDIMASSTMSTR.csv output
+# spark-submit data_process_general_latest_MASTER.py DIM_ASST_MSTR_201501.txt ASST_ID_ADDRESS.csv replaceDIMASSTMSTR.csv 01
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 from pyspark.sql import SparkSession
@@ -249,15 +249,20 @@ for key in re_dict_col:
         f.close()
         sys.exit(invalid_type_values)
 
+# Subtract number from string 'BA8321' to '8321'
+def sampler(df, inital_numer):
+
+
+    return df.filter(df[col].isin(vals))
+
 # Logic to perform data scrubbing according to user needs mentioned in the replace file
 try:
     for key, value in re_dict_col.items():
         if key == "numeric":
             for column in value:
                 startint_value = int(re_dict_val[column])
-                df = df.withColumn('temp', lit(startint_value))
-                df = df.withColumn(column, col(column)-col('temp')).drop('temp')
-                # df = df.withColumn(column, increment_udf(column))
+                increment_udf = udf(lambda x: int(float(''.join(i for i in str(x) if i.isdigit()))) + startint_value if x  else '', LongType())
+                df = df.withColumn(column, increment_udf(column))
         if key == "cross":
             for column in value:
                 startint_value = int(float(re_dict_val[column]))
