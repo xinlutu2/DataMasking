@@ -290,7 +290,7 @@ try:
                 df = df.withColumn('postRegex', regexp_extract(column,'(\d+)-(\d+)',2))
                 df = df.withColumn('preRegex', replace_acct_num_udf('preRegex'))
                 df = df.withColumn('newValue', concat(df.preRegex,lit(re_dict_val[column]),df.postRegex))
-                df = df.withColumn(column, lit(df.newValue)).drop('newValue')
+                df = df.withColumn(column, lit(df.newValue)).drop('newValue').drop('preRegex').drop('postRegex')
         if key == "single":
             for column in value:
                 delimiter = re_dict_val[column][-2:-1]
