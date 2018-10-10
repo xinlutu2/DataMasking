@@ -34,7 +34,7 @@ invalid_column_names = "User input error. Invalid scrubbing criteria. One or mor
 invalid_type_values = "User input error. Invalid scrubbing criteria. One or more values in the TYPE column of replace file are incorrect. Please check the replace file contents!!!!"
 exceptionStatusMsg = "Processing error. Error occured during code execution. Please check the Execution exception log file for more details!!!!"
 
-valid_replace_changes = ['address', 'fix', 'multiple', 'numeric','regex','single','cross']
+valid_replace_changes = ['address', 'amount', 'cross', 'fix', 'multiple', 'numeric','regex', 'single']
 input_file = sys.argv[1]
 address_file = sys.argv[2]
 replace_file = sys.argv[3]
@@ -263,6 +263,11 @@ try:
                 startint_value = int(re_dict_val[column])
                 increment_udf = udf(lambda x: int(float(''.join(i for i in str(x) if i.isdigit()))) + startint_value if x  else '', LongType())
                 df = df.withColumn(column, increment_udf(column))
+        if key == "amount":
+            for column in value:
+                factor = float(re_dict_val[column])
+                multiply_udf = udf(lambda x: x*factor, FloatType())
+                df = df.withColumn(column, multiply_udf(column))
         if key == "cross":
             for column in value:
                 startint_value = int(float(re_dict_val[column]))
