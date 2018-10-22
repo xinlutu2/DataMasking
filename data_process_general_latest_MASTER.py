@@ -294,7 +294,7 @@ try:
                 df = df.withColumn(column, multi_dict_udf(column))  
         if key == "fix":
             for column in value:
-                df = df.withColumn(column, lit(' '.join(re_dict_val[column])))   
+                df = df.withColumn(column, lit(''.join(re_dict_val[column])))   
         if key == "regex":
             for column in value:
                 df = df.withColumn('preRegex', regexp_extract(column, '(\d+)-(\d+)',1))
