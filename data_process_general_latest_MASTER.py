@@ -40,7 +40,6 @@ address_file = sys.argv[2]
 replace_file = sys.argv[3]
 output_directory = sys.argv[4]
 execution_status_files = ['ExecutionResult.txt','Excecution_Exception_Log.txt']
-
 # Remove output directory if exists
 if os.path.exists(output_directory):
     shutil.rmtree(output_directory)
@@ -146,17 +145,24 @@ def sampler(df, col, num_of_output_records):
 
 # Function to use for REGEX replace
 def replaceAcctNum(preRegexString):
-    (i,replaceString) = (0,"")
+    acct_const = 123
+    int_check = preRegexString.isdigit()
+    if int_check:
+        preRegexInt = int(preRegexString)
+        preRegexInt = preRegexInt - acct_const
+        preRegexString = str(preRegexInt)
+        lengthofString = len(preRegexString)
+        withholdString = preRegexString[0:1]
 
-    preRegexString = str(preRegexString)
-    lengthofString = len(preRegexString)
-    withholdString = preRegexString[0:1]
+        (i,replaceString) = (lengthofString-1,"")
 
-    while i < (lengthofString-1):
-        replaceString = replaceString+str(i)
-        i=i+1
-    newStringValue = withholdString+replaceString
-    return newStringValue
+        while i >= 1:
+            replaceString = replaceString+preRegexString[i]
+            i=i-1
+        newStringValue = withholdString+replaceString
+        return newStringValue
+    else:
+        return preRegexString
 
 # Read the input Data Scrubbing needs file to create appropriate data structures
 try:
